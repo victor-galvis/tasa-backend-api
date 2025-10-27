@@ -41,6 +41,7 @@ export class UsersService {
       user: {
         id: savedUser!.id,
         name: savedUser!.name,
+        email: savedUser!.email,
         lastname: savedUser!.lastname,
       },
     };
