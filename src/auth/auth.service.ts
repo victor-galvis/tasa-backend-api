@@ -19,11 +19,9 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) throw new UnauthorizedException('Credenciales inválidas');
 
-    // payload que viajará en el token
     const payload = { sub: user.id, email: user.email };
     const token = await this.jwtService.signAsync(payload);
 
-    // Devuelve token y datos básicos del usuario
     return {
       access_token: token,
       user: {
@@ -31,6 +29,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         lastname: user.lastname,
+        document: user.identificationNumber,
+        documentType: user.documentTypeId,
       },
     };
   }

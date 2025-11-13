@@ -31,6 +31,7 @@ import { ContractModule } from './contract/contract.module';
 import { ContractService } from './contract/contract.service';
 import { ProvincesModule } from './provinces/provinces.module';
 import { CitiesModule } from './cities/cities.module';
+import { CompanyModule } from './company/company.module';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -61,6 +62,7 @@ dotenv.config();
     ContractModule,
     ProvincesModule,
     CitiesModule,
+    CompanyModule,
   ],
   providers: [AuthService, S3ServiceService],
   controllers: [AuthController, S3ControllerController],

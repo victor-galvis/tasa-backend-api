@@ -28,6 +28,9 @@ export class Contract {
   @Column({ name: 'province_id' })
   provinceId: number;
 
+  @Column({ name: 'company_id' })
+  companyId: number;
+
   @Column({ name: 'city_id' })
   cityId: number;
 }

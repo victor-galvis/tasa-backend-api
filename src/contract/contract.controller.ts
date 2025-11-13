@@ -42,4 +42,19 @@ export class ContractController {
   remove(@Param('id') id: number) {
     return this.contractService.remove(id);
   }
+
+  @Post('validate')
+  async validateContract(@Body() body: any) {
+    return this.contractService.validateContract(body.filters);
+  }
+
+  @Post('download-invoices')
+  async downloadContract(@Body() body: any) {
+    return this.contractService.downloadInvoice(body.filters);
+  }
+
+  @Post('pending-payments')
+  async pendingPayments(@Body() body: any) {
+    return this.contractService.pendingPayment(body.filters);
+  }
 }
