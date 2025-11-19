@@ -5,7 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 @Injectable()
 export class S3ServiceService {
   private s3: S3Client;
-  private bucketName = 'pruebad';
+  private bucketName = 'vmas-tasaseg';
 
   constructor() {
     this.s3 = new S3Client({
