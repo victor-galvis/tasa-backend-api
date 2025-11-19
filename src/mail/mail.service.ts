@@ -11,8 +11,8 @@ export class MailService {
     secure: false,
 
     auth: {
-      user: 'notificaciones.ti@valormas.gov.co',
-      pass: 'Valormas2025*',
+            user: 'nelson.torres@valormas.gov.co',
+      pass: 'V4l0rM452025**',
     },
     tls: {
       ciphers: 'SSLv3',
