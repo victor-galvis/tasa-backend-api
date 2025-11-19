@@ -45,7 +45,7 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      url: 'http://antuap20.antioquia.local:8000/sap/bc/ztescc_pp/site/ValidacionContrato',
+      url: 'http://10.0.5.43:8000/sap/bc/ztescc_pp/site/ValidacionContrato',
       headers: {
         'Content-Type': 'application/json',
         Authorization:
@@ -73,7 +73,7 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      url: 'http://antuap20.antioquia.local:8000/sap/bc/ztescc_pp/site/DescargaFacturas',
+      url: 'http://10.0.5.43:8000/sap/bc/ztescc_pp/site/DescargaFacturas',
       headers: {
         'Content-Type': 'application/json',
         Authorization:
@@ -99,7 +99,7 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      url: 'http://antuap20.antioquia.local:8000/sap/bc/ztescc_pp/site/PendientePagar',
+      url: 'http://10.0.5.43:8000/sap/bc/ztescc_pp/site/PendientePagar',
       headers: {
         'Content-Type': 'application/json',
         Authorization:
