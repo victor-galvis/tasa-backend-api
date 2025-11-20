@@ -8,7 +8,6 @@ import { Otp } from '../otp/otp.entity';
 import { UserHasInvoice } from '../invoices/user-has-invoice.entity';
 import { MailModule } from '../mail/mail.module';
 import { Invoice } from 'src/invoices/invoice.entity';
-import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from 'src/auth/auth.module';
 
 @Module({

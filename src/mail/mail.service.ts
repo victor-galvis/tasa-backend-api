@@ -6,13 +6,13 @@ import path from 'path';
 @Injectable()
 export class MailService {
   private transporter = nodemailer.createTransport({
-    host: 'smtp.office365.com',
-    port: 587,
+    host: process.env.MAIL_HOST!,
+    port: process.env.MAIL_PORT!,
     secure: false,
 
     auth: {
-            user: 'nelson.torres@valormas.gov.co',
-      pass: 'V4l0rM452025**',
+      user: process.env.MAIL_USER!,
+      pass: process.env.MAIL_PASS!,
     },
     tls: {
       ciphers: 'SSLv3',
@@ -30,7 +30,7 @@ export class MailService {
     htmlTemplate = htmlTemplate.replace('{{CODE}}', code);
 
     await this.transporter.sendMail({
-      from: '"Notificaciones TI" <notificaciones.ti@valormas.gov.co>',
+      from: '"Nelson Torres" <nelson.torres@valormas.gov.co>',
       to: email,
       subject:
         ' Confirma tu registro en el Portal Transaccional – Tasa de Seguridad Antioquia',

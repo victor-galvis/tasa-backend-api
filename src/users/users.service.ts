@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -25,27 +25,36 @@ export class UsersService {
   ) {}
 
   async register(dto: any) {
-    const hash = await bcrypt.hash(dto.password, 10);
-    const user = this.userRepo.create({ ...dto, password: hash });
-    await this.userRepo.save(user);
 
     const savedUser = await this.userRepo.findOne({
       where: { email: dto.email },
     });
+    if (savedUser) {
+      throw new BadRequestException(`El correo <b>${dto.email}</b> ya está en uso.`);
+    } else {
+        const hash = await bcrypt.hash(dto.password, 10);
+        const user = this.userRepo.create({ ...dto, password: hash });
 
-    const payload = { sub: savedUser!.id, email: savedUser!.email };
-    const access_token = await this.jwtService.signAsync(payload);
-    return {
-      message: 'Usuario creado exitosamente.',
-      access_token,
-      user: {
-        id: savedUser!.id,
-        name: savedUser!.name,
-        email: savedUser!.email,
-        lastname: savedUser!.lastname,
-      },
-    };
+        const newUser = (await this.userRepo.save(user)) as unknown as User;
+
+        const payload = { sub: newUser.id, email: newUser.email };
+        const access_token = await this.jwtService.signAsync(payload);
+        return {
+          message: 'Usuario creado exitosamente.',
+          access_token,
+          user: {
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email,
+            lastname: newUser.lastname,
+            document: newUser.identificationNumber,
+            documentType: newUser.documentTypeId,
+          },
+        };
+    }
   }
+
+ 
 
   async addInvoice(userId: number, number: string) {
     const invoice = this.invoiceRepo.create({ number });

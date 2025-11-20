@@ -1,31 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as crypto from 'crypto';
 import { Otp } from '../otp/otp.entity';
 import { Repository } from 'typeorm';
 import { MailService } from '../mail/mail.service';
+import { UsersService } from 'src/users/users.service';
+import { User } from 'src/users/user.entity';
 
 @Injectable()
 export class OtpService {
   constructor(
     @InjectRepository(Otp) private otpRepository: Repository<Otp>,
-    private mailService: MailService,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    
+    private mailService: MailService, 
   ) {}
 
   async generateOtp(email: string) {
-    const code = Math.floor(10000 + Math.random() * 90000).toString();
-    await this.otpRepository.save({
-      email: email,
-      code,
-      status: 'pending',
-      created_at: new Date(),
-    });
-    await this.mailService.sendOtp(email, code);
-    return {
-      status: 'success',
-      message: 'Código OTP enviado al correo electrónico',
-      response: { email, code },
-    };
+    let user =  await this.userRepo.findOne({where: {email}});
+    if (!user) {
+
+      const code = Math.floor(10000 + Math.random() * 90000).toString();
+      await this.otpRepository.save({
+        email: email,
+        code,
+        status: 'pending',
+        created_at: new Date(),
+      });
+      await this.mailService.sendOtp(email, code);
+      return {
+        status: 'success',
+        message: 'Código OTP enviado al correo electrónico',
+        response: 'Ok',
+      };
+    } else {
+      throw new BadRequestException(`El correo <b>${email}</b> ya está en uso.`);
+
+    }
   }
 
   async verifyOtp(email: string, code: string) {
