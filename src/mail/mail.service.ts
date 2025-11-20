@@ -30,7 +30,7 @@ export class MailService {
     htmlTemplate = htmlTemplate.replace('{{CODE}}', code);
 
     await this.transporter.sendMail({
-      from: '"Nelson Torres" <nelson.torres@valormas.gov.co>',
+      from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_USER}>`,
       to: email,
       subject:
         ' Confirma tu registro en el Portal Transaccional – Tasa de Seguridad Antioquia',
