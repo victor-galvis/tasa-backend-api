@@ -12,9 +12,9 @@ export class InvoicesService {
     private readonly s3Service: S3ServiceService,
   ) {}
 
-  async findByFacturaAndCedula(invoiceNumber: string, cedula: string) {
+  async findByFactura(invoiceNumber: string) {
     const invoice = await this.invoiceRepository.findOne({
-      where: { numeroFactura: invoiceNumber, numeroCedula: cedula },
+      where: { numeroFactura: invoiceNumber },
     });
 
     if (!invoice) {

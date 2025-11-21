@@ -7,9 +7,8 @@ export class InvoicesController {
 
   @Get('/get-invoice')
   getInvoice(
-    @Query('numero_factura') numeroFactura: string,
-    @Query('numero_documento') numeroDocumento: string,
+    @Query('numero_factura') numeroFactura: string
   ) {
-    return this.service.findByFacturaAndCedula(numeroFactura, numeroDocumento);
+    return this.service.findByFactura(numeroFactura);
   }
 }
