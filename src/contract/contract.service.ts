@@ -45,13 +45,13 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      url: 'http://10.0.5.45:8001/sap/bc/ztescc_pp/site/ValidacionContrato?sap-client=700',
+      url: process.env.SAP_ENDPOINT_VALIDATECONTRACT,
       headers: {
         'Content-Type': 'application/json',
         Authorization:
-          'Basic ' + Buffer.from('USRWTESCC:ANJO_934P$WT').toString('base64'),
+          'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie:
-          'SAP_SESSIONID_QAS_700=fz4Q3FgVsZrKD5IM20U03U56gSi0LRHwkRQAF6R3CK4%3d; sap-usercontext=sap-client=700',
+          process.env.SAP_COOKIE,
       },
       data,
     };
@@ -73,13 +73,13 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      url: 'http://10.0.5.45:8001/sap/bc/ztescc_pp/site/DescargaFacturas?sap-client=700',
+      url: process.env.SAP_ENDPOINT_DOWNLOADINVOICE,
       headers: {
         'Content-Type': 'application/json',
         Authorization:
-          'Basic ' + Buffer.from('USRWTESCC:ANJO_934P$WT').toString('base64'),
+          'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie:
-          'SAP_SESSIONID_QAS_700=fz4Q3FgVsZrKD5IM20U03U56gSi0LRHwkRQAF6R3CK4%3d; sap-usercontext=sap-client=700',
+          process.env.SAP_COOKIE,
       },
       data,
     };
@@ -99,13 +99,13 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      url: 'http://10.0.5.45:8001/sap/bc/ztescc_pp/site/PendientePagar?sap-client=700',
+      url: process.env.SAP_ENDPOINT_PENDINGPAYMENT,
       headers: {
         'Content-Type': 'application/json',
         Authorization:
-          'Basic ' + Buffer.from('USRWTESCC:ANJO_934P$WT').toString('base64'),
+          'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie:
-          'SAP_SESSIONID_QAS_700=fz4Q3FgVsZrKD5IM20U03U56gSi0LRHwkRQAF6R3CK4%3d; sap-usercontext=sap-client=700',
+         process.env.SAP_COOKIE,
       },
       data,
     };
