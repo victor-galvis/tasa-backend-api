@@ -27,8 +27,16 @@ export class MailService {
     let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
 
     // Reemplazar el placeholder
-    htmlTemplate = htmlTemplate.replace('{{CODE}}', code);
+  //  htmlTemplate = htmlTemplate.replace('{{CODE}}', code);
 
+    htmlTemplate = htmlTemplate.replace(/{{(CODE|EMAIL)}}/g, (_, key) => {
+      const map = {
+        CODE: code,
+        EMAIL: email
+      };
+      return map[key];
+    });
+    
     await this.transporter.sendMail({
       from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_USER}>`,
       to: email,
