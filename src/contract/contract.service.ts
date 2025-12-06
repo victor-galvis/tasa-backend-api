@@ -9,7 +9,7 @@ export class ContractService {
   constructor(
     @InjectRepository(Contract)
     private readonly contractRepository: Repository<Contract>,
-  ) {}
+  ) { }
 
   findAll() {
     return this.contractRepository.find();
@@ -60,6 +60,8 @@ export class ContractService {
       const response = await axios.request(config);
       return response.data;
     } catch (error) {
+
+
       console.error('Error al validar contrato:', error.message);
       throw new Error('No se pudo validar el contrato');
     }
@@ -105,7 +107,7 @@ export class ContractService {
         Authorization:
           'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie:
-         process.env.SAP_COOKIE,
+          process.env.SAP_COOKIE,
       },
       data,
     };

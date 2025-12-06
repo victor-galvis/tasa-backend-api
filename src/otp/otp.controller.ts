@@ -1,3 +1,4 @@
+import { generate } from 'rxjs';
 import { OtpService } from './otp.service';
 import { Controller, Post, Body } from '@nestjs/common';
 
@@ -6,8 +7,13 @@ export class OtpController {
     constructor(private readonly otpService: OtpService) { }
 
     @Post('generate-otp')
-    register(@Body() body: { email: string }) {
-        return this.otpService.generateOtp(body.email);
+    register(@Body() body: { email: string, type: string }) {
+        return this.otpService.generateOtp(body.email, body.type);
+    }
+
+    @Post('generate-otp-forgot-password')
+    generateOtpForgotPassword(@Body() body: { email: string, type: string }) {
+        return this.otpService.generateOtpForgotPassword(body.email, body.type);
     }
 
     @Post('verify-otp')

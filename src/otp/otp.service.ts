@@ -12,12 +12,12 @@ export class OtpService {
   constructor(
     @InjectRepository(Otp) private otpRepository: Repository<Otp>,
     @InjectRepository(User) private userRepo: Repository<User>,
-    
-    private mailService: MailService, 
-  ) {}
 
-  async generateOtp(email: string) {
-    let user =  await this.userRepo.findOne({where: {email}});
+    private mailService: MailService,
+  ) { }
+
+  async generateOtp(email: string, type: string) {
+    let user = await this.userRepo.findOne({ where: { email } });
     if (!user) {
 
       const code = Math.floor(10000 + Math.random() * 90000).toString();
@@ -39,11 +39,39 @@ export class OtpService {
     }
   }
 
+  async generateOtpForgotPassword(email: string, type: string) {
+    let user = await this.userRepo.findOne({ where: { email } });
+    if (user) {
+
+      const code = Math.floor(10000 + Math.random() * 90000).toString();
+      await this.otpRepository.save({
+        email: email,
+        code,
+        status: 'pending',
+        type,
+        created_at: new Date(),
+      });
+      await this.mailService.sendOtpRecoveryPassword(email, `${user.name} ${user.lastname} `, code);
+      return {
+        status: 'success',
+        message: 'Código OTP enviado al correo electrónico',
+        response: 'Ok',
+      };
+    } else {
+      throw new BadRequestException(`El correo <b>${email}</b> ya está en uso.`);
+
+    }
+  }
+
   async verifyOtp(email: string, code: string) {
     const otp = await this.otpRepository.findOne({
-      where: { email, code, status: 'pending' },
+      where: { email, code },
     });
-    if (!otp) throw new Error('Código inválido');
+    if (!otp) throw new BadRequestException('El código OTP es inválido');
+
+    if (otp?.status === 'verified') {
+      throw new BadRequestException('Código ya ha sido verificado anteriormente');
+    }
 
     otp.status = 'verified';
     otp.validated_at = new Date();

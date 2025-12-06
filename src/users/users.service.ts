@@ -22,7 +22,7 @@ export class UsersService {
     private userInvoiceRepo: Repository<UserHasInvoice>,
     private mailService: MailService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: any) {
 
@@ -32,29 +32,28 @@ export class UsersService {
     if (savedUser) {
       throw new BadRequestException(`El correo <b>${dto.email}</b> ya está en uso.`);
     } else {
-        const hash = await bcrypt.hash(dto.password, 10);
-        const user = this.userRepo.create({ ...dto, password: hash });
+      const hash = await bcrypt.hash(dto.password, 10);
+      const user = this.userRepo.create({ ...dto, password: hash });
 
-        const newUser = (await this.userRepo.save(user)) as unknown as User;
+      const newUser = (await this.userRepo.save(user)) as unknown as User;
 
-        const payload = { sub: newUser.id, email: newUser.email };
-        const access_token = await this.jwtService.signAsync(payload);
-        return {
-          message: 'Usuario creado exitosamente.',
-          access_token,
-          user: {
-            id: newUser.id,
-            name: newUser.name,
-            email: newUser.email,
-            lastname: newUser.lastname,
-            document: newUser.identificationNumber,
-            documentType: newUser.documentTypeId,
-          },
-        };
+      const payload = { sub: newUser.id, email: newUser.email };
+      const access_token = await this.jwtService.signAsync(payload);
+      return {
+        message: 'Usuario creado exitosamente.',
+        access_token,
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          lastname: newUser.lastname,
+          document: newUser.identificationNumber,
+          documentType: newUser.documentTypeId,
+        },
+      };
     }
   }
 
- 
 
   async addInvoice(userId: number, number: string) {
     const invoice = this.invoiceRepo.create({ number });
@@ -68,4 +67,23 @@ export class UsersService {
 
     return { message: 'Factura creada y asociada', invoiceId: invoice.id };
   }
-}
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepo.findOne({ where: { email } });
+  }
+
+  async resetPassword(email: string, newPassword: string) {
+    console.log("******************************************");
+    console.log(email, newPassword);
+    console.log("******************************************");
+
+    const user = await this.userRepo.findOne({ where: { email } });
+    if (!user) {
+      throw new BadRequestException(`El correo <b>${email}</b> no está registrado.`);
+    }
+    const hash = await bcrypt.hash(newPassword, 10);
+    user.password = hash;
+    await this.userRepo.save(user);
+    return { message: 'Contraseña actualizada exitosamente.' };
+  }
+}   

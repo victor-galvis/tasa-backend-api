@@ -20,15 +20,8 @@ export class MailService {
   });
 
   async sendOtp(email: string, code: string) {
-    // Ruta del template
     const templatePath = path.join(__dirname, 'templates', 'template.html');
-
-    // Leer contenido del archivo
     let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
-
-    // Reemplazar el placeholder
-  //  htmlTemplate = htmlTemplate.replace('{{CODE}}', code);
-
     htmlTemplate = htmlTemplate.replace(/{{(CODE|EMAIL)}}/g, (_, key) => {
       const map = {
         CODE: code,
@@ -36,12 +29,31 @@ export class MailService {
       };
       return map[key];
     });
-    
+
     await this.transporter.sendMail({
       from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_USER}>`,
       to: email,
       subject:
         ' Confirma tu registro en el Portal Transaccional – Tasa de Seguridad Antioquia',
+      html: htmlTemplate,
+    });
+  }
+  async sendOtpRecoveryPassword(email: string, name: string, code: string) {
+    const templatePath = path.join(__dirname, 'templates', 'template-recovery.html');
+    let htmlTemplate = fs.readFileSync(templatePath, 'utf8');
+    htmlTemplate = htmlTemplate.replace(/{{(NAME|CODE)}}/g, (_, key) => {
+      const map = {
+        NAME: name,
+        CODE: code
+      };
+      return map[key];
+    });
+
+    await this.transporter.sendMail({
+      from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject:
+        'Recuperación de contraseña – Portal Transaccional Gobernación de Antioquia',
       html: htmlTemplate,
     });
   }
