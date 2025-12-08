@@ -69,13 +69,30 @@ export class OtpService {
     });
     if (!otp) throw new BadRequestException('El código OTP es inválido');
 
-    if (otp?.status === 'verified') {
+    if (otp.status === 'verified') {
       throw new BadRequestException('Código ya ha sido verificado anteriormente');
     }
+
+    // ⏳ Validar expiración (10 minutos)
+    const createdAt = otp.created_at instanceof Date
+      ? otp.created_at
+      : new Date(otp.created_at);
+
+    const now = new Date();
+    const diffMs = now.getTime() - createdAt.getTime();
+    const diffMinutes = diffMs / (1000 * 60);
+
+    if (diffMinutes > 10) {
+      throw new BadRequestException('El código OTP ha expirado');
+    }
+
+
 
     otp.status = 'verified';
     otp.validated_at = new Date();
     await this.otpRepository.save(otp);
+
     return { valid: true };
   }
+
 }

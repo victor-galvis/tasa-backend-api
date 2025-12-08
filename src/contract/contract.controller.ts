@@ -6,13 +6,16 @@ import {
   Get,
   Param,
   Post,
+  Req,
 } from '@nestjs/common';
 import { ContractService } from './contract.service';
 import { Contract } from './contract.entity';
+import { jwtDecode } from 'jwt-decode';
+
 
 @Controller('contract')
 export class ContractController {
-  constructor(private readonly contractService: ContractService) {}
+  constructor(private readonly contractService: ContractService) { }
 
   @Get()
   findAll() {
@@ -44,8 +47,13 @@ export class ContractController {
   }
 
   @Post('validate')
-  async validateContract(@Body() body: any) {
-    return this.contractService.validateContract(body.filters);
+  async validateContract(@Body() body: any, @Req() req) {
+
+    const auth = req.headers['authorization'];
+    const token = auth?.split(' ')[1];
+    const payload = jwtDecode<{ email: string }>(token);
+
+    return this.contractService.validateContract(body.filters, payload.email);
   }
 
   @Post('download-invoices')

@@ -10,7 +10,7 @@ export class InvoicesService {
     @InjectRepository(InvoiceS3)
     private readonly invoiceRepository: Repository<InvoiceS3>,
     private readonly s3Service: S3ServiceService,
-  ) {}
+  ) { }
 
   async findByFactura(invoiceNumber: string) {
     const invoice = await this.invoiceRepository.findOne({
@@ -20,9 +20,6 @@ export class InvoicesService {
     if (!invoice) {
       throw new NotFoundException('Factura no encontrada');
     }
-
-    console.log('rutaCompleta', invoice.rutaCompleta);
-
     const url = await this.s3Service.getFile(invoice.rutaCompleta);
     return url;
   }

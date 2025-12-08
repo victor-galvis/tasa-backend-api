@@ -20,7 +20,6 @@ export class UsersService {
     @InjectRepository(Otp) private otpRepo: Repository<Otp>,
     @InjectRepository(UserHasInvoice)
     private userInvoiceRepo: Repository<UserHasInvoice>,
-    private mailService: MailService,
     private readonly jwtService: JwtService,
   ) { }
 

@@ -28,10 +28,11 @@ import { S3ServiceService } from './s3/s3.service/s3.service.service';
 import { DocumentTypesModule } from './document-types/document-types.module';
 import { AuthModule } from './auth/auth.module';
 import { ContractModule } from './contract/contract.module';
-import { ContractService } from './contract/contract.service';
 import { ProvincesModule } from './provinces/provinces.module';
 import { CitiesModule } from './cities/cities.module';
 import { CompanyModule } from './company/company.module';
+import { AddressValidateModule } from './address-validate/address-validate.module';
+import { UtilsModule } from './utils/utils.module';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -63,8 +64,10 @@ dotenv.config();
     ProvincesModule,
     CitiesModule,
     CompanyModule,
+    AddressValidateModule,
+    UtilsModule,
   ],
   providers: [AuthService, S3ServiceService],
   controllers: [AuthController, S3ControllerController],
 })
-export class AppModule {}
+export class AppModule { }

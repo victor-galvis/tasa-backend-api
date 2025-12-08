@@ -3,12 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Contract } from './contract.entity';
 import { Repository } from 'typeorm';
 import axios from 'axios';
+import { UtilsService } from 'src/utils/utils.service';
+import { AddressValidateService } from 'src/address-validate/address-validate.service';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ContractService {
   constructor(
     @InjectRepository(Contract)
     private readonly contractRepository: Repository<Contract>,
+    private readonly utils: UtilsService,
+    private readonly addressValidateService: AddressValidateService,
+    private readonly userService: UsersService,
+
   ) { }
 
   findAll() {
@@ -38,9 +45,11 @@ export class ContractService {
     return { message: `Contrato ${id} eliminado correctamente` };
   }
 
-  async validateContract(filters: any) {
+  async validateContract(filters: any, email: string) {
     const data = JSON.stringify({ filters });
     console.log('Data enviada para validación:', data);
+    console.log('Email:', email);
+
 
     const config = {
       method: 'get' as const,
@@ -58,15 +67,45 @@ export class ContractService {
 
     try {
       const response = await axios.request(config);
-      return response.data;
+      console.log('Respuesta de validación:', filters);
+      if (response.data.data.length > 0) {
+
+        let user = await this.userService.findByEmail(email);
+
+        if (!user) {
+          throw new Error('User not found');
+        }
+
+        const correctAddress = response.data.data[0].address;
+        const randomFakes = Array.from({ length: 4 }, () => this.utils.generateRandomAddress());
+        const addresses = this.utils.shuffleArray([...randomFakes, correctAddress]);
+
+        //Si existe una validación previa, no crear una nueva actulizarla
+        let data = {
+          "company": filters.company,
+          "agreement": filters.agreement,
+          "user_id": user.id,
+          "correctAddress": correctAddress,
+          "status": "PENDING"
+        }
+        const resultAddress = await this.addressValidateService.findOneByCompanyAgreementUser({
+          company: filters.company,
+          agreement: filters.agreement,
+        }, email);
+        console.log('Existing Validation:', resultAddress);
+        if (!resultAddress) {
+          this.addressValidateService.create(data);
+        }
+
+        return { status: 'OK', addresses };
+      } else {
+        return { status: 'NOT_FOUND', addresses: [] };
+      }
     } catch (error) {
-
-
       console.error('Error al validar contrato:', error.message);
       throw new Error('No se pudo validar el contrato');
     }
   }
-
   async downloadInvoice(filters: any) {
     const data = JSON.stringify({ filters });
 
