@@ -72,9 +72,6 @@ export class UsersService {
   }
 
   async resetPassword(email: string, newPassword: string) {
-    console.log("******************************************");
-    console.log(email, newPassword);
-    console.log("******************************************");
 
     const user = await this.userRepo.findOne({ where: { email } });
     if (!user) {

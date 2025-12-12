@@ -47,9 +47,6 @@ export class ContractService {
 
   async validateContract(filters: any, email: string) {
     const data = JSON.stringify({ filters });
-    console.log('Data enviada para validación:', data);
-    console.log('Email:', email);
-
 
     const config = {
       method: 'get' as const,
@@ -67,7 +64,6 @@ export class ContractService {
 
     try {
       const response = await axios.request(config);
-      console.log('Respuesta de validación:', filters);
       if (response.data.data.length > 0) {
 
         let user = await this.userService.findByEmail(email);
@@ -92,7 +88,6 @@ export class ContractService {
           company: filters.company,
           agreement: filters.agreement,
         }, email);
-        console.log('Existing Validation:', resultAddress);
         if (!resultAddress) {
           this.addressValidateService.create(data);
         }
@@ -109,7 +104,6 @@ export class ContractService {
   async downloadInvoice(filters: any) {
     const data = JSON.stringify({ filters });
 
-    console.log('Data enviada para descarga de factura:', data);
 
     const config = {
       method: 'get' as const,
