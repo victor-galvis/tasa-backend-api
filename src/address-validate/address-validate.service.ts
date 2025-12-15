@@ -21,29 +21,59 @@ export class AddressValidateService {
         return saved;
     }
 
-    async findOneByCompanyAgreementUserAndUpdate(data: any, email: string): Promise<{ isValid: boolean }> {
-        const user = await this.userService.findByEmail(email);
+    async findOneByCompanyAgreementUserAndUpdate(
+        data: any,
+        email: string
+    ): Promise<{ isValid: boolean }> {
 
+        const user = await this.userService.findByEmail(email);
         if (!user) {
             throw new Error('User not found');
         }
 
-        const result = await this.addressValidateRepository.findOne({
+        const address = await this.addressValidateRepository.findOne({
             where: {
                 "company": data.company,
                 "agreement": data.agreement,
-                "user_id": user.id,
-                "correctAddress": data.address,
-                "status": "PENDING"
+                "user_id": user.id
             },
         });
-        if (result) {
-            result.status = "VALIDATED";
-            await this.addressValidateRepository.save(result);
+        const maxAttempts = Number(process.env.ATTEMPTS_VALIDATECONTRACT ?? '0');
+        if (!address || address.attempts >= maxAttempts) {
+            return { isValid: false, message: 'Ha superado el número máximo de intentos' } as any;
         }
-        return { isValid: !!result };
+
+        const isValid = address.correctAddress === data.address;
+
+        const result = await this.addressValidateRepository.update({
+            company: data.company,
+            agreement: data.agreement,
+            user_id: user.id
+        }, {
+            status: isValid ? 'VALIDATED' : 'PENDING',
+            attempts: () => 'attempts + 1',
+        });
+        console.log('result => ', result);
+        console.log('isValid => ', isValid);
+
+
+        return { isValid, message: isValid ? 'Dirección validada correctamente' : 'Dirección no validada' } as any;
     }
 
+    async blockAddressValidate(data: any, email: string) {
+        const user = await this.userService.findByEmail(email);
+        if (!user) {
+            throw new Error('User not found');
+        }
+        const result = await this.addressValidateRepository.update({
+            company: data.company,
+            agreement: data.agreement,
+            user_id: user.id
+        }, {
+            status: 'BLOCKED',
+        });
+        return result;
+    }
 
     async findOneByCompanyAgreementUser(data: any, email: string) {
         const user = await this.userService.findByEmail(email);
@@ -56,9 +86,7 @@ export class AddressValidateService {
             where: {
                 "company": data.company,
                 "agreement": data.agreement,
-                "user_id": user.id,
-                "correctAddress": data.address,
-                "status": "PENDING"
+                "user_id": user.id
             },
         });
 

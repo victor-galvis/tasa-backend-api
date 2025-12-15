@@ -46,7 +46,25 @@ export class ContractService {
   }
 
   async validateContract(filters: any, email: string) {
+
+
     const data = JSON.stringify({ filters });
+
+    const resultAddress = await this.addressValidateService.findOneByCompanyAgreementUser({
+      company: filters.company,
+      agreement: filters.agreement,
+    }, email);
+
+    const maxAttempts = Number(process.env.ATTEMPTS_VALIDATECONTRACT ?? '0');
+
+    if (resultAddress && resultAddress.attempts >= maxAttempts) {
+      await this.addressValidateService.blockAddressValidate({
+        company: filters.company,
+        agreement: filters.agreement,
+      }, email);
+
+      return { status: 'MAX_ATTEMPTS', message: 'Ha superado el número máximo de intentos. El contrado fue bloqueado' };
+    }
 
     const config = {
       method: 'get' as const,
@@ -84,10 +102,11 @@ export class ContractService {
           "correctAddress": correctAddress,
           "status": "PENDING"
         }
-        const resultAddress = await this.addressValidateService.findOneByCompanyAgreementUser({
-          company: filters.company,
-          agreement: filters.agreement,
-        }, email);
+        console.log('filters', filters);
+
+
+        console.log('resultAddress', resultAddress);
+
         if (!resultAddress) {
           this.addressValidateService.create(data);
         }

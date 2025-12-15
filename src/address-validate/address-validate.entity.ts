@@ -23,4 +23,7 @@ export class AddressValidate {
 
     @Column({ type: 'varchar', length: 15 })
     status: string;
+
+    @Column({ type: 'int' })
+    attempts: number;
 }
