@@ -56,8 +56,9 @@ export class AddressValidateService {
         console.log('result => ', result);
         console.log('isValid => ', isValid);
 
-
-        return { isValid, message: isValid ? 'Dirección validada correctamente' : 'Dirección no validada' } as any;
+        //Necesito retornar los intentos restantes en un mensaje hazlo copilot
+        const remainingAttempts = maxAttempts - (address?.attempts || 0);
+        return { isValid, message: isValid ? 'Dirección validada correctamente' : `Dirección no validada. Intentos restantes: ${remainingAttempts}` } as any;
     }
 
     async blockAddressValidate(data: any, email: string) {
