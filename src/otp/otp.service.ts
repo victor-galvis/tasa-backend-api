@@ -25,6 +25,7 @@ export class OtpService {
         email: email,
         code,
         status: 'pending',
+        type: 'email_verification',
         created_at: new Date(),
       });
       await this.mailService.sendOtp(email, code);
@@ -48,7 +49,7 @@ export class OtpService {
         email: email,
         code,
         status: 'pending',
-        type,
+        type: 'email_verification', 
         created_at: new Date(),
       });
       await this.mailService.sendOtpRecoveryPassword(email, `${user.name} ${user.lastname} `, code);
