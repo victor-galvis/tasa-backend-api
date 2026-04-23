@@ -9,13 +9,15 @@ import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ContractService {
+  private validateCache = new Map<string, { result: any; timestamp: number }>();
+  private readonly CACHE_TTL = 30_000; // 30 segundos
+
   constructor(
     @InjectRepository(Contract)
     private readonly contractRepository: Repository<Contract>,
     private readonly utils: UtilsService,
     private readonly addressValidateService: AddressValidateService,
     private readonly userService: UsersService,
-
   ) { }
 
   findAll() {
@@ -46,7 +48,12 @@ export class ContractService {
   }
 
   async validateContract(filters: any, email: string) {
-
+    const cacheKey = `${filters.company}-${filters.agreement}-${email}`;
+    const cached = this.validateCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log(`[CACHE HIT] validateContract ${cacheKey}`);
+      return cached.result;
+    }
 
     const data = JSON.stringify({ filters });
 
@@ -63,7 +70,12 @@ export class ContractService {
         agreement: filters.agreement,
       }, email);
 
-      return { status: 'MAX_ATTEMPTS', message: 'Ha superado el número máximo de intentos. El contrado fue bloqueado' };
+      const maxAttemptsResult = {
+        status: 'MAX_ATTEMPTS',
+        message: 'Ha superado el número máximo de intentos. El contrado fue bloqueado'
+      };
+      this.validateCache.set(cacheKey, { result: maxAttemptsResult, timestamp: Date.now() });
+      return maxAttemptsResult;
     }
 
     const config = {
@@ -74,8 +86,7 @@ export class ContractService {
         'Content-Type': 'application/json',
         Authorization:
           'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
-        Cookie:
-          process.env.SAP_COOKIE,
+        Cookie: process.env.SAP_COOKIE,
       },
       data,
     };
@@ -94,35 +105,36 @@ export class ContractService {
         const randomFakes = Array.from({ length: 4 }, () => this.utils.generateRandomAddress());
         const addresses = this.utils.shuffleArray([...randomFakes, correctAddress]);
 
-        //Si existe una validación previa, no crear una nueva actulizarla
-        let data = {
-          "company": filters.company,
-          "agreement": filters.agreement,
-          "user_id": user.id,
-          "correctAddress": correctAddress,
-          "status": "PENDING"
-        }
+        const addressData = {
+          company: filters.company,
+          agreement: filters.agreement,
+          user_id: user.id,
+          correctAddress: correctAddress,
+          status: 'PENDING',
+        };
         console.log('filters', filters);
-
-
         console.log('resultAddress', resultAddress);
 
         if (!resultAddress) {
-          this.addressValidateService.create(data);
+          await this.addressValidateService.create(addressData);
         }
 
-        return { status: 'OK', addresses };
+        const okResult = { status: 'OK', addresses };
+        this.validateCache.set(cacheKey, { result: okResult, timestamp: Date.now() });
+        return okResult;
       } else {
-        return { status: 'NOT_FOUND', addresses: [] };
+        const notFoundResult = { status: 'NOT_FOUND', addresses: [] };
+        this.validateCache.set(cacheKey, { result: notFoundResult, timestamp: Date.now() });
+        return notFoundResult;
       }
     } catch (error) {
-      console.error('Error al validar contrato:', error.message);
+      const err = error as Error;
+      console.error('Error al validar contrato:', err.message);
       throw new Error('No se pudo validar el contrato');
     }
   }
   async downloadInvoice(filters: any) {
     const data = JSON.stringify({ filters });
-
 
     const config = {
       method: 'get' as const,
@@ -132,8 +144,7 @@ export class ContractService {
         'Content-Type': 'application/json',
         Authorization:
           'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
-        Cookie:
-          process.env.SAP_COOKIE,
+        Cookie: process.env.SAP_COOKIE,
       },
       data,
     };
@@ -142,8 +153,9 @@ export class ContractService {
       const response = await axios.request(config);
       return response.data;
     } catch (error) {
-      console.error('Error al validar contrato:', error.message);
-      throw new Error('No se pudo validar el contrato');
+      const err = error as Error;
+      console.error('Error al descargar factura:', err.message);
+      throw new Error('No se pudo descargar la factura');
     }
   }
 
@@ -158,8 +170,7 @@ export class ContractService {
         'Content-Type': 'application/json',
         Authorization:
           'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
-        Cookie:
-          process.env.SAP_COOKIE,
+        Cookie: process.env.SAP_COOKIE,
       },
       data,
     };
@@ -168,8 +179,9 @@ export class ContractService {
       const response = await axios.request(config);
       return response.data;
     } catch (error) {
-      console.error('Error al validar contrato:', error.message);
-      throw new Error('No se pudo validar el contrato');
+      const err = error as Error;
+      console.error('Error al consultar pagos pendientes:', err.message);
+      throw new Error('No se pudo consultar los pagos pendientes');
     }
   }
 }
