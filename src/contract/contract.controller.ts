@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,15 +6,16 @@ import {
   Param,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ContractService } from './contract.service';
 import { Contract } from './contract.entity';
 import { jwtDecode } from 'jwt-decode';
-
+import { ValidateContractRateLimitGuard } from './rate-limit.guard';
 
 @Controller('contract')
 export class ContractController {
-  constructor(private readonly contractService: ContractService) { }
+  constructor(private readonly contractService: ContractService) {}
 
   @Get()
   findAll() {
@@ -29,7 +29,6 @@ export class ContractController {
 
   @Post()
   async create(@Body() data: Partial<Contract>) {
-
     data.created_at = new Date();
     return this.contractService.create(data);
   }
@@ -39,9 +38,10 @@ export class ContractController {
     return this.contractService.remove(id);
   }
 
+  // ✅ Guard aplicado SOLO en este endpoint — bloquea antes de llegar a SAP
+  @UseGuards(ValidateContractRateLimitGuard)
   @Post('validate')
   async validateContract(@Body() body: any, @Req() req) {
-
     const auth = req.headers['authorization'];
     const token = auth?.split(' ')[1];
     const payload = jwtDecode<{ email: string }>(token);
