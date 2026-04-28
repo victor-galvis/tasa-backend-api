@@ -8,7 +8,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 
 interface RateLimitRecord {
-  contracts: Set<string>; // contratos distintos consultados
+  totalRequests: number;   // total de peticiones (mismo contrato cuenta)
   blockedUntil: number | null;
   windowStart: number;
 }
@@ -17,12 +17,11 @@ interface RateLimitRecord {
 export class ValidateContractRateLimitGuard implements CanActivate {
   // Ventana de tiempo en la que se cuentan las peticiones (ms)
   private readonly WINDOW_MS = 10 * 60 * 1000; // 10 minutos
-  // Máximo de contratos distintos permitidos dentro de la ventana
-  private readonly MAX_DISTINCT_CONTRACTS = 10;
+  // Máximo de peticiones totales permitidas dentro de la ventana
+  private readonly MAX_REQUESTS = 10;
   // Tiempo de bloqueo cuando se supera el límite (ms)
   private readonly BLOCK_DURATION_MS = 2 * 60 * 60 * 1000; // 2 horas
 
-  // Almacenamiento en memoria: clave → registro
   private readonly userRecords = new Map<string, RateLimitRecord>();
   private readonly ipRecords = new Map<string, RateLimitRecord>();
 
@@ -50,41 +49,34 @@ export class ValidateContractRateLimitGuard implements CanActivate {
         email = payload.email ?? null;
       }
     } catch {
-      // Si el token es inválido dejamos email = null y solo aplicamos límite por IP
+      // Token inválido → solo aplicamos límite por IP
     }
 
-    // ── 3. Extraer el número de contrato del body ───────────────────────────
-    const contractNumber: string =
-      request.body?.filters?.agreement ?? request.body?.filters?.contract ?? 'unknown';
+    // ── 3. Verificar límite por IP ──────────────────────────────────────────
+    this.checkAndUpdate(this.ipRecords, ip, now, 'IP');
 
-    // ── 4. Verificar y actualizar límite por IP ─────────────────────────────
-    this.checkAndUpdate(this.ipRecords, ip, contractNumber, now, 'IP');
-
-    // ── 5. Verificar y actualizar límite por usuario ────────────────────────
+    // ── 4. Verificar límite por usuario ─────────────────────────────────────
     if (email) {
-      this.checkAndUpdate(this.userRecords, email, contractNumber, now, 'usuario');
+      this.checkAndUpdate(this.userRecords, email, now, 'usuario');
     }
 
     return true;
   }
 
-  // ── Lógica central de rate limiting ──────────────────────────────────────
   private checkAndUpdate(
     store: Map<string, RateLimitRecord>,
     key: string,
-    contractNumber: string,
     now: number,
     label: string,
   ): void {
     let record = store.get(key);
 
-    // Si no existe registro, lo inicializamos
     if (!record) {
-      record = { contracts: new Set(), blockedUntil: null, windowStart: now };
+      record = { totalRequests: 0, blockedUntil: null, windowStart: now };
       store.set(key, record);
     }
 
-    // Si está bloqueado, verificamos si ya expiró el bloqueo
+    // Si está bloqueado, verificamos si ya expiró
     if (record.blockedUntil !== null) {
       if (now < record.blockedUntil) {
         const minutosRestantes = Math.ceil((record.blockedUntil - now) / 60_000);
@@ -100,26 +92,26 @@ export class ValidateContractRateLimitGuard implements CanActivate {
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
-      // Bloqueo expirado → reiniciamos el registro
-      record.contracts = new Set();
+      // Bloqueo expirado → reiniciamos
+      record.totalRequests = 0;
       record.blockedUntil = null;
       record.windowStart = now;
     }
 
-    // Si la ventana de tiempo expiró, reiniciamos el contador
+    // Si la ventana de tiempo expiró → reiniciamos el contador
     if (now - record.windowStart > this.WINDOW_MS) {
-      record.contracts = new Set();
+      record.totalRequests = 0;
       record.windowStart = now;
     }
 
-    // Registramos el contrato consultado (Set ignora duplicados automáticamente)
-    record.contracts.add(contractNumber);
+    // Sumamos la petición actual
+    record.totalRequests += 1;
 
-    // Si supera el máximo de contratos distintos → bloqueamos
-    if (record.contracts.size > this.MAX_DISTINCT_CONTRACTS) {
+    // Si supera el máximo → bloqueamos
+    if (record.totalRequests > this.MAX_REQUESTS) {
       record.blockedUntil = now + this.BLOCK_DURATION_MS;
       console.warn(
-        `[RATE LIMIT] ${label} BLOQUEADO por 2h: ${key} | Contratos distintos: ${record.contracts.size}`,
+        `[RATE LIMIT] ${label} BLOQUEADO por 2h: ${key} | Peticiones en ventana: ${record.totalRequests}`,
       );
       throw new HttpException(
         {
