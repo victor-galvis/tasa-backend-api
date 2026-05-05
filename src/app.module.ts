@@ -1,16 +1,3 @@
-/*
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-
-@Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-*/
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -33,6 +20,7 @@ import { CitiesModule } from './cities/cities.module';
 import { CompanyModule } from './company/company.module';
 import { AddressValidateModule } from './address-validate/address-validate.module';
 import { UtilsModule } from './utils/utils.module';
+import { NotificationUpdateModule } from './notification-update/notification-update.module'; // 👈 nuevo
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -66,6 +54,7 @@ dotenv.config();
     CompanyModule,
     AddressValidateModule,
     UtilsModule,
+    NotificationUpdateModule, // 👈 nuevo
   ],
   providers: [AuthService, S3ServiceService],
   controllers: [AuthController, S3ControllerController],
