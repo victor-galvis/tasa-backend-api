@@ -8,18 +8,15 @@ import {
 import { JwtService } from '@nestjs/jwt';
 
 interface RateLimitRecord {
-  totalRequests: number;   // total de peticiones (mismo contrato cuenta)
+  totalRequests: number;
   blockedUntil: number | null;
   windowStart: number;
 }
 
 @Injectable()
 export class ValidateContractRateLimitGuard implements CanActivate {
-  // Ventana de tiempo en la que se cuentan las peticiones (ms)
   private readonly WINDOW_MS = 10 * 60 * 1000; // 10 minutos
-  // Máximo de peticiones totales permitidas dentro de la ventana
   private readonly MAX_REQUESTS = 10;
-  // Tiempo de bloqueo cuando se supera el límite (ms)
   private readonly BLOCK_DURATION_MS = 2 * 60 * 60 * 1000; // 2 horas
 
   private readonly userRecords = new Map<string, RateLimitRecord>();
@@ -52,12 +49,12 @@ export class ValidateContractRateLimitGuard implements CanActivate {
       // Token inválido → solo aplicamos límite por IP
     }
 
-    // ── 3. Verificar límite por IP ──────────────────────────────────────────
-    this.checkAndUpdate(this.ipRecords, ip, now, 'IP');
+    // ── 3. Verificar límite por IP (incluye email para contexto en log) ─────
+    this.checkAndUpdate(this.ipRecords, ip, now, 'IP', email);
 
     // ── 4. Verificar límite por usuario ─────────────────────────────────────
     if (email) {
-      this.checkAndUpdate(this.userRecords, email, now, 'usuario');
+      this.checkAndUpdate(this.userRecords, email, now, 'usuario', email);
     }
 
     return true;
@@ -68,6 +65,7 @@ export class ValidateContractRateLimitGuard implements CanActivate {
     key: string,
     now: number,
     label: string,
+    email: string | null,
   ): void {
     let record = store.get(key);
 
@@ -80,8 +78,10 @@ export class ValidateContractRateLimitGuard implements CanActivate {
     if (record.blockedUntil !== null) {
       if (now < record.blockedUntil) {
         const minutosRestantes = Math.ceil((record.blockedUntil - now) / 60_000);
+        const ts = new Date().toISOString();
+        const userInfo = email ? ` | usuario: ${email}` : '';
         console.warn(
-          `[RATE LIMIT] ${label} bloqueado: ${key} | Desbloqueo en ${minutosRestantes} min`,
+          `[RATE LIMIT] [${ts}] ${label} bloqueado: ${key}${userInfo} | Desbloqueo en ${minutosRestantes} min`,
         );
         throw new HttpException(
           {
@@ -110,8 +110,10 @@ export class ValidateContractRateLimitGuard implements CanActivate {
     // Si supera el máximo → bloqueamos
     if (record.totalRequests > this.MAX_REQUESTS) {
       record.blockedUntil = now + this.BLOCK_DURATION_MS;
+      const ts = new Date().toISOString();
+      const userInfo = email ? ` | usuario: ${email}` : '';
       console.warn(
-        `[RATE LIMIT] ${label} BLOQUEADO por 2h: ${key} | Peticiones en ventana: ${record.totalRequests}`,
+        `[RATE LIMIT] [${ts}] ${label} BLOQUEADO por 2h: ${key}${userInfo} | Peticiones en ventana: ${record.totalRequests}`,
       );
       throw new HttpException(
         {
