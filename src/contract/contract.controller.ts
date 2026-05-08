@@ -12,6 +12,7 @@ import { ContractService } from './contract.service';
 import { Contract } from './contract.entity';
 import { jwtDecode } from 'jwt-decode';
 import { ValidateContractRateLimitGuard } from './rate-limit.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('contract')
 export class ContractController {
@@ -38,8 +39,7 @@ export class ContractController {
     return this.contractService.remove(id);
   }
 
-  // ✅ Guard aplicado SOLO en este endpoint — bloquea antes de llegar a SAP
-  @UseGuards(ValidateContractRateLimitGuard)
+  @UseGuards(JwtAuthGuard, ValidateContractRateLimitGuard)
   @Post('validate')
   async validateContract(@Body() body: any, @Req() req) {
     const auth = req.headers['authorization'];
