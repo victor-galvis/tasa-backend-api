@@ -16,10 +16,10 @@ interface RateLimitRecord {
 
 @Injectable()
 export class ValidateContractRateLimitGuard implements CanActivate {
-  private readonly WINDOW_MS = 10 * 60 * 1000;              // 10 minutos
-  private readonly MAX_REQUESTS = 5;                         // máximo 5 peticiones
-  private readonly BLOCK_DURATION_MS = 12 * 60 * 60 * 1000; // 12 horas
-  private readonly CONSECUTIVE_THRESHOLD = 3;                // 3 contratos consecutivos = bot
+  private readonly WINDOW_MS = 10 * 60 * 1000;              
+  private readonly MAX_REQUESTS = 20;                        
+  private readonly BLOCK_DURATION_MS = 2 * 60 * 60 * 1000;  
+  private readonly CONSECUTIVE_THRESHOLD = 3;               
 
   private readonly userRecords = new Map<string, RateLimitRecord>();
   private readonly ipRecords = new Map<string, RateLimitRecord>();
@@ -144,14 +144,14 @@ export class ValidateContractRateLimitGuard implements CanActivate {
       const ts = new Date().toISOString();
       const userInfo = email ? ` | usuario: ${email}` : '';
       console.warn(
-        `[RATE LIMIT] [${ts}] ${label} BLOQUEADO por 12h (SECUENCIA CONSECUTIVA): ${key}${userInfo} | Contratos: ${record.lastContracts.slice(-this.CONSECUTIVE_THRESHOLD).join(', ')}`,
+        `[RATE LIMIT] [${ts}] ${label} BLOQUEADO por 2h (SECUENCIA CONSECUTIVA): ${key}${userInfo} | Contratos: ${record.lastContracts.slice(-this.CONSECUTIVE_THRESHOLD).join(', ')}`,
       );
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
           error: 'TOO_MANY_REQUESTS',
           message:
-            'Ha realizado demasiadas consultas de contratos. Su acceso ha sido bloqueado temporalmente por 12 horas.',
+            'Ha realizado demasiadas consultas de contratos. Su acceso ha sido bloqueado temporalmente por 2 horas.',
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
@@ -165,14 +165,14 @@ export class ValidateContractRateLimitGuard implements CanActivate {
       const ts = new Date().toISOString();
       const userInfo = email ? ` | usuario: ${email}` : '';
       console.warn(
-        `[RATE LIMIT] [${ts}] ${label} BLOQUEADO por 12h: ${key}${userInfo} | Peticiones en ventana: ${record.totalRequests}`,
+        `[RATE LIMIT] [${ts}] ${label} BLOQUEADO por 2h: ${key}${userInfo} | Peticiones en ventana: ${record.totalRequests}`,
       );
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
           error: 'TOO_MANY_REQUESTS',
           message:
-            'Ha realizado demasiadas consultas de contratos. Su acceso ha sido bloqueado temporalmente por 12 horas.',
+            'Ha realizado demasiadas consultas de contratos. Su acceso ha sido bloqueado temporalmente por 2 horas.',
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
