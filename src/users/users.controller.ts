@@ -1,11 +1,13 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { RecaptchaGuard } from '../auth/recaptcha.guard';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Post('register')
+  @UseGuards(RecaptchaGuard)
   register(@Body() dto: any) {
     return this.usersService.register(dto);
   }
@@ -22,6 +24,7 @@ export class UsersController {
   }
 
   @Post('reset-password')
+  @UseGuards(RecaptchaGuard)
   resetPassword(@Body() body: { email: string; password: string }) {
     return this.usersService.resetPassword(body.email, body.password);
   }
