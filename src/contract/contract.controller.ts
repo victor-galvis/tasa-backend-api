@@ -13,10 +13,15 @@ import { Contract } from './contract.entity';
 import { jwtDecode } from 'jwt-decode';
 import { ValidateContractRateLimitGuard } from './rate-limit.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from './admin.guard';
+import { AddressValidateService } from 'src/address-validate/address-validate.service';
 
 @Controller('contract')
 export class ContractController {
-  constructor(private readonly contractService: ContractService) {}
+  constructor(
+    private readonly contractService: ContractService,
+    private readonly addressValidateService: AddressValidateService, // ← agregar
+  ) {}
 
   @Get()
   findAll() {
@@ -45,7 +50,6 @@ export class ContractController {
     const auth = req.headers['authorization'];
     const token = auth?.split(' ')[1];
     const payload = jwtDecode<{ email: string }>(token);
-
     return this.contractService.validateContract(body.filters, payload.email);
   }
 
@@ -57,5 +61,18 @@ export class ContractController {
   @Post('pending-payments')
   async pendingPayments(@Body() body: any) {
     return this.contractService.pendingPayment(body.filters);
+  }
+
+  // ── Admin endpoints ────────────────────────────────────────
+  @UseGuards(AdminGuard)
+  @Get('blocked')
+  getBlockedContracts() {
+    return this.addressValidateService.findBlocked();
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('unblock/:id')
+  unblockById(@Param('id') id: number) {
+    return this.addressValidateService.deleteById(id);
   }
 }

@@ -9,6 +9,7 @@ import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { ValidateContractRateLimitGuard } from './rate-limit.guard';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { AdminGuard } from './admin.guard';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
     ContractService,
     ValidateContractRateLimitGuard,
     JwtAuthGuard,
+    AdminGuard, // ← agregar
   ],
   controllers: [ContractController],
 })

@@ -94,4 +94,17 @@ export class AddressValidateService {
         return result
     }
 
+
+    async findBlocked() {
+  return this.addressValidateRepository.find({
+    where: { status: 'BLOCKED' },
+    order: { id: 'DESC' },
+  });
+}
+
+async deleteById(id: number) {
+  await this.addressValidateRepository.delete(id);
+  return { message: `Registro ${id} eliminado. El usuario puede volver a validar.` };
+}
+
 }
