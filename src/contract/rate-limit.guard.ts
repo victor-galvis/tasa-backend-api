@@ -16,15 +16,18 @@ interface RateLimitRecord {
 
 @Injectable()
 export class ValidateContractRateLimitGuard implements CanActivate {
-  private readonly WINDOW_MS = 10 * 60 * 1000;              
-  private readonly MAX_REQUESTS = 20;                        
-  private readonly BLOCK_DURATION_MS = 2 * 60 * 60 * 1000;  
-  private readonly CONSECUTIVE_THRESHOLD = 3;               
+  private readonly WINDOW_MS = 10 * 60 * 1000;
+  private readonly MAX_REQUESTS = 20;
+  private readonly BLOCK_DURATION_MS = 2 * 60 * 60 * 1000;
+  private readonly CONSECUTIVE_THRESHOLD = 3;
+  private readonly WHITELISTED_EMAILS: string[] = [
+    'tasaseguridad@antioquia.gov.co',
+  ];
 
   private readonly userRecords = new Map<string, RateLimitRecord>();
   private readonly ipRecords = new Map<string, RateLimitRecord>();
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(private readonly jwtService: JwtService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -51,14 +54,19 @@ export class ValidateContractRateLimitGuard implements CanActivate {
       // Token inválido → solo aplicamos límite por IP
     }
 
-    // ── 3. Extraer número de contrato del body 
+    // ── 3. Verificar si el usuario está en la whitelist ─────────────────────
+    if (email && this.WHITELISTED_EMAILS.includes(email)) {
+      return true;
+    }
+
+    // ── 4. Extraer número de contrato del body 
     const contractNumber: string =
       request.body?.filters?.agreement?.toString() ?? '';
 
-    // ── 4. Verificar límite por IP 
+    // ── 5. Verificar límite por IP 
     this.checkAndUpdate(this.ipRecords, ip, now, 'IP', email, contractNumber);
 
-    // ── 5. Verificar límite por usuario 
+    // ── 6. Verificar límite por usuario 
     if (email) {
       this.checkAndUpdate(this.userRecords, email, now, 'usuario', email, contractNumber);
     }
