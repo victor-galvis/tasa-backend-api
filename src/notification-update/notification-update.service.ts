@@ -3,6 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotificationUpdate, NotificationUpdateType } from './notification-update.entity';
 import { UsersService } from 'src/users/users.service';
+import { SapIntegrationService } from 'src/sap-integration/sap-integration.service';
+
+export interface NotificationUpdatePayload {
+    email?: string;
+    direccion?: string;
+    municipio?: string;
+    departamento?: string;
+}
 
 /** Maximum allowed updates per type before the record is BLOCKED */
 const MAX_ATTEMPTS = 2;
@@ -33,31 +41,28 @@ export class NotificationUpdateService {
         @InjectRepository(NotificationUpdate)
         private readonly notificationUpdateRepository: Repository<NotificationUpdate>,
         private readonly usersService: UsersService,
+        private readonly sapIntegrationService: SapIntegrationService,
     ) {}
 
     // ─────────────────────────────────────────────────────────────
     // PUBLIC: get current update status for a company + agreement
+    // Alcance: company + agreement (SIN user_id) — el límite protege
+    // el contrato, sin importar qué usuario del portal lo inscriba.
     // ─────────────────────────────────────────────────────────────
     async getStatus(
         company: string,
         agreement: string,
-        email: string,
     ): Promise<NotificationStatusResult> {
-        const user = await this.usersService.findByEmail(email);
-        if (!user) throw new BadRequestException('User not found');
-
         const result: NotificationStatusResult = { email: null, address: null };
 
-        // Count total records per type — each INSERT = 1 attempt
         for (const type of ['email', 'address'] as NotificationUpdateType[]) {
             const totalAttempts = await this.notificationUpdateRepository.count({
-                where: { company, agreement, user_id: user.id, updateType: type },
+                where: { company, agreement, updateType: type },
             });
 
             if (totalAttempts > 0) {
-                // Get the latest record to check current status
                 const latest = await this.notificationUpdateRepository.findOne({
-                    where: { company, agreement, user_id: user.id, updateType: type },
+                    where: { company, agreement, updateType: type },
                     order: { id: 'DESC' },
                 });
 
@@ -73,43 +78,53 @@ export class NotificationUpdateService {
         return result;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // PUBLIC: attempt to update email or address — always INSERT
-    // ─────────────────────────────────────────────────────────────
     async updateNotification(
         company: string,
         agreement: string,
         updateType: NotificationUpdateType,
-        newValue: string,
-        email: string,
+        payload: NotificationUpdatePayload,
+        requesterEmail: string,
     ): Promise<NotificationUpdateResult> {
-        const user = await this.usersService.findByEmail(email);
+        const user = await this.usersService.findByEmail(requesterEmail);
         if (!user) throw new BadRequestException('User not found');
 
-        // 1. Count how many records already exist for this company + agreement + type
-        //    Each row = one update attempt → full audit trail preserved
+        // 1. Fail-fast por company+agreement+type (sin user_id)
         const totalAttempts = await this.notificationUpdateRepository.count({
-            where: { company, agreement, user_id: user.id, updateType },
+            where: { company, agreement, updateType },
         });
 
-        // 2. Already at or over the limit → deny, do NOT insert
         if (totalAttempts >= MAX_ATTEMPTS) {
             throw new ForbiddenException({
                 blocked: true,
                 message:
-                    `You have reached the maximum of ${MAX_ATTEMPTS} updates ` +
-                    `for ${updateType === 'email' ? 'email address' : 'physical address'}. ` +
-                    `Please contact the administrator to make further changes.`,
+                    `Se alcanzó el máximo de ${MAX_ATTEMPTS} actualizaciones ` +
+                    `de ${updateType === 'email' ? 'correo' : 'dirección'} para este contrato. ` +
+                    `Contacte al administrador para realizar más cambios.`,
                 attempts: totalAttempts,
                 remaining: 0,
             });
         }
 
-        // 3. Calculate attempt number and status for this new record
+        // 2. Llamar a SAP — si falla, propaga el error sin insertar nada
+        const newValue =
+            updateType === 'email' ? (payload.email ?? '') : (payload.direccion ?? '');
+
+        if (updateType === 'email') {
+            await this.sapIntegrationService.updateEmail(company, agreement, payload.email ?? '');
+        } else {
+            await this.sapIntegrationService.updateAddress(
+                company,
+                agreement,
+                payload.direccion ?? '',
+                payload.municipio ?? '',
+                payload.departamento ?? '',
+            );
+        }
+
+        // 3. SAP OK -> INSERT auditoría (user_id solo para trazabilidad)
         const newAttempts = totalAttempts + 1;
         const newStatus   = newAttempts >= MAX_ATTEMPTS ? 'BLOCKED' : 'UPDATED';
 
-        // 4. Always INSERT a new row — never update existing ones
         await this.notificationUpdateRepository.save({
             company,
             agreement,
@@ -117,12 +132,11 @@ export class NotificationUpdateService {
             updateType,
             newValue,
             status:     newStatus as any,
-            attempts:   newAttempts, // sequential number for reference
+            attempts:   newAttempts,
         });
 
-        // 5. Build response
         const remaining = MAX_ATTEMPTS - newAttempts;
-        const typeLabel = updateType === 'email' ? 'email address' : 'physical address';
+        const typeLabel = updateType === 'email' ? 'correo' : 'dirección';
 
         return {
             success:  true,
@@ -131,9 +145,8 @@ export class NotificationUpdateService {
             remaining,
             message:
                 newStatus === 'BLOCKED'
-                    ? `${typeLabel} updated successfully. You have used all your available updates. ` +
-                      `Further changes must be managed by the administrator.`
-                    : `${typeLabel} updated successfully. You have ${remaining} update(s) remaining.`,
+                    ? `${typeLabel} actualizado correctamente en SAP. Se agotaron las actualizaciones disponibles.`
+                    : `${typeLabel} actualizado correctamente en SAP. Le quedan ${remaining} actualización(es).`,
         };
     }
 
@@ -144,13 +157,9 @@ export class NotificationUpdateService {
         company: string,
         agreement: string,
         updateType: NotificationUpdateType,
-        email: string,
     ) {
-        const user = await this.usersService.findByEmail(email);
-        if (!user) throw new BadRequestException('User not found');
-
         const result = await this.notificationUpdateRepository.update(
-            { company, agreement, user_id: user.id, updateType },
+            { company, agreement, updateType },
             { status: 'BLOCKED' },
         );
 
@@ -158,19 +167,16 @@ export class NotificationUpdateService {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // INTERNAL: read a single record (used by other modules if needed)
+    // INTERNAL: read a single record (used by ContractService)
     // ─────────────────────────────────────────────────────────────
     async findOne(
         company: string,
         agreement: string,
         updateType: NotificationUpdateType,
-        email: string,
     ): Promise<NotificationUpdate | null> {
-        const user = await this.usersService.findByEmail(email);
-        if (!user) throw new BadRequestException('User not found');
-
         return this.notificationUpdateRepository.findOne({
-            where: { company, agreement, user_id: user.id, updateType },
+            where: { company, agreement, updateType },
+            order: { id: 'DESC' },
         });
     }
 }

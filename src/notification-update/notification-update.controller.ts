@@ -14,8 +14,8 @@ import { jwtDecode } from 'jwt-decode';
 interface UpdateNotificationBody {
     company:    string;
     agreement:  string;
-    updateType: NotificationUpdateType; // 'email' | 'address'
-    newValue:   string;                 // the new email or address string
+    updateType: NotificationUpdateType;
+    newValue:   string;                 
 }
 
 interface BlockNotificationBody {
@@ -32,15 +32,13 @@ export class NotificationUpdateController {
 
     // ─────────────────────────────────────────────────────────────
     // GET /notification-update/status?company=14&agreement=4155
-    // Returns how many attempts each type (email / address) has used
+    // Alcance company+agreement — ya no depende del usuario logueado
     // ─────────────────────────────────────────────────────────────
     @Get('status')
-    async getStatus(@Query() query: { company: string; agreement: string }, @Req() req) {
-        const email = this.extractEmail(req);
+    async getStatus(@Query() query: { company: string; agreement: string }) {
         return this.notificationUpdateService.getStatus(
             query.company,
             query.agreement,
-            email,
         );
     }
 
@@ -48,6 +46,7 @@ export class NotificationUpdateController {
     // POST /notification-update
     // Attempt to update email or physical address
     // Body: { company, agreement, updateType, newValue }
+    // user_id se sigue resolviendo del JWT, pero solo para auditoría
     // ─────────────────────────────────────────────────────────────
     @Post()
     @HttpCode(200)
@@ -68,13 +67,11 @@ export class NotificationUpdateController {
     // ─────────────────────────────────────────────────────────────
     @Post('block')
     @HttpCode(200)
-    async block(@Body() body: BlockNotificationBody, @Req() req) {
-        const email = this.extractEmail(req);
+    async block(@Body() body: BlockNotificationBody) {
         return this.notificationUpdateService.blockNotificationUpdate(
             body.company,
             body.agreement,
             body.updateType,
-            email,
         );
     }
 
