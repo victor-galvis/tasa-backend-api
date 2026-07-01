@@ -54,11 +54,19 @@ export class SapIntegrationService {
 
     try {
       const response = await axios.request(config);
-      return response.data;
+      const result: SapUpdateResponse = response.data;
+
+      // SAP responde HTTP 200 incluso cuando el negocio falla
+      // (ej. contrato inexistente) — el éxito real va en result.status
+      if (result.status !== 200) {
+        throw new Error(result.message || 'SAP rechazó la actualización de email');
+      }
+
+      return result;
     } catch (error) {
       const err = error as any;
       console.error('Error al actualizar email en SAP:', err.message);
-      throw new Error('No se pudo actualizar el email en SAP');
+      throw new Error(err.message || 'No se pudo actualizar el email en SAP');
     }
   }
 
@@ -96,11 +104,17 @@ export class SapIntegrationService {
 
     try {
       const response = await axios.request(config);
-      return response.data;
+      const result: SapUpdateResponse = response.data;
+
+      if (result.status !== 200) {
+        throw new Error(result.message || 'SAP rechazó la actualización de dirección');
+      }
+
+      return result;
     } catch (error) {
       const err = error as any;
       console.error('Error al actualizar dirección en SAP:', err.message);
-      throw new Error('No se pudo actualizar la dirección en SAP');
+      throw new Error(err.message || 'No se pudo actualizar la dirección en SAP');
     }
   }
 }

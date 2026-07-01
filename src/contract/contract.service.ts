@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Contract } from './contract.entity';
 import { Repository } from 'typeorm';
@@ -47,6 +47,19 @@ export class ContractService {
 
   async create(data: Partial<Contract> & { address?: string }, requesterEmail: string) {
     const { address, ...contractData } = data;
+    const existing = await this.contractRepository.findOne({
+      where: {
+        user_id: contractData.user_id,
+        companyId: contractData.companyId,
+        number: contractData.number,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'Ya tienes este contrato inscrito. No es posible registrarlo nuevamente.',
+      );
+    }
 
     const newContract = this.contractRepository.create(contractData);
     const saved = await this.contractRepository.save(newContract);
@@ -77,7 +90,7 @@ export class ContractService {
           'address',
           {
             direccion: address,
-            municipio: city.code,
+            municipio: city.code.slice(-3),
             departamento: province.code,
           },
           requesterEmail,

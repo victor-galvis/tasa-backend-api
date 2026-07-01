@@ -12,10 +12,13 @@ import { NotificationUpdateType } from './notification-update.entity';
 import { jwtDecode } from 'jwt-decode';
 
 interface UpdateNotificationBody {
-    company:    string;
-    agreement:  string;
-    updateType: NotificationUpdateType;
-    newValue:   string;                 
+    company:      string;
+    agreement:    string;
+    updateType:   NotificationUpdateType;
+    email?:       string;
+    direccion?:   string; 
+    municipio?:   string; 
+    departamento?: string; 
 }
 
 interface BlockNotificationBody {
@@ -56,7 +59,12 @@ export class NotificationUpdateController {
             body.company,
             body.agreement,
             body.updateType,
-            body.newValue,
+            {
+                email: body.email,
+                direccion: body.direccion,
+                municipio: body.municipio,
+                departamento: body.departamento,
+            },
             email,
         );
     }
