@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm'; // ← Like agregado
 import { City } from './cities.entity';
 
 @Injectable()
@@ -15,8 +15,13 @@ export class CitiesService {
   }
 
   async findByProvince(provinceId: number): Promise<City[]> {
+    return this.repo.find({ where: { provinceId } });
+  }
+
+  async findByCodePrefix(prefix: string): Promise<City[]> {
     return this.repo.find({
-      where: { provinceId },
+      where: { code: Like(`${prefix}%`) },
+      order: { name: 'ASC' },
     });
   }
 }

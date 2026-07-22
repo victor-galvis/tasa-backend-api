@@ -34,9 +34,12 @@ export class ContractController {
   }
 
   @Post()
-  async create(@Body() data: Partial<Contract>) {
+  async create(@Body() data: Partial<Contract> & { address?: string }, @Req() req) {
     data.created_at = new Date();
-    return this.contractService.create(data);
+    const auth = req.headers['authorization'];
+    const token = auth?.split(' ')[1];
+    const payload = jwtDecode<{ email: string }>(token);
+    return this.contractService.create(data, payload.email);
   }
 
   @Delete(':id')

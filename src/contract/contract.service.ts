@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Contract } from './contract.entity';
 import { Repository } from 'typeorm';
@@ -6,6 +6,9 @@ import axios from 'axios';
 import { UtilsService } from 'src/utils/utils.service';
 import { AddressValidateService } from 'src/address-validate/address-validate.service';
 import { UsersService } from 'src/users/users.service';
+import { NotificationUpdateService } from 'src/notification-update/notification-update.service';
+import { City } from 'src/cities/cities.entity';
+import { Province } from 'src/provinces/province.entity';
 
 @Injectable()
 export class ContractService {
@@ -15,9 +18,14 @@ export class ContractService {
   constructor(
     @InjectRepository(Contract)
     private readonly contractRepository: Repository<Contract>,
+    @InjectRepository(City)
+    private readonly cityRepository: Repository<City>,
+    @InjectRepository(Province)
+    private readonly provinceRepository: Repository<Province>,
     private readonly utils: UtilsService,
     private readonly addressValidateService: AddressValidateService,
     private readonly userService: UsersService,
+    private readonly notificationUpdateService: NotificationUpdateService,
   ) { }
 
   findAll() {
@@ -37,9 +45,65 @@ export class ContractService {
     return this.contractRepository.findOne({ where: { number, user_id } });
   }
 
-  async create(data: Partial<Contract>) {
-    const newContract = this.contractRepository.create(data);
-    return await this.contractRepository.save(newContract);
+  async create(data: Partial<Contract> & { address?: string }, requesterEmail: string) {
+    const { address, ...contractData } = data;
+    const existing = await this.contractRepository.findOne({
+      where: {
+        user_id: contractData.user_id,
+        companyId: contractData.companyId,
+        number: contractData.number,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'Ya tienes este contrato inscrito. No es posible registrarlo nuevamente.',
+      );
+    }
+
+    const newContract = this.contractRepository.create(contractData);
+    const saved = await this.contractRepository.save(newContract);
+
+    try {
+      const comercializadora = String(saved.companyId);
+      const contrato = saved.number;
+
+      if (saved.deliveryMethod === 'digital') {
+        await this.notificationUpdateService.updateNotification(
+          comercializadora,
+          contrato,
+          'email',
+          { email: requesterEmail },
+          requesterEmail,
+        );
+      } else {
+        const city = await this.cityRepository.findOne({ where: { id: saved.cityId } });
+        const province = await this.provinceRepository.findOne({ where: { id: saved.provinceId } });
+
+        if (!city || !province) {
+          throw new Error('No se encontró el municipio o departamento del contrato para sincronizar con SAP');
+        }
+
+        await this.notificationUpdateService.updateNotification(
+          comercializadora,
+          contrato,
+          'address',
+          {
+            direccion: address,
+            municipio: city.code.slice(-3),
+            departamento: province.code,
+          },
+          requesterEmail,
+        );
+      }
+    } catch (error) {
+      const err = error as Error;
+      console.error('No se pudo sincronizar la notificación con SAP:', err.message);
+      // El contrato queda creado igual (decisión sección 5 #1) — se avisa al frontend.
+      return { ...saved, notificationSyncError: err.message };
+    }
+
+    return saved;
   }
 
   async remove(id: number) {

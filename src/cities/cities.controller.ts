@@ -12,4 +12,11 @@ export class CitiesController {
   ): Promise<City[]> {
     return this.citiesService.findByProvince(provinceId);
   }
+
+  @Get('by-code-prefix/:prefix')       // ← endpoint nuevo
+  async findByCodePrefix(
+    @Param('prefix') prefix: string,
+  ): Promise<City[]> {
+    return this.citiesService.findByCodePrefix(prefix);
+  }
 }

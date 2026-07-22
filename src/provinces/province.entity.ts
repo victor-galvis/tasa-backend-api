@@ -8,4 +8,7 @@ export class Province {
 
   @Column({ type: 'varchar', length: 45 })
   name: string;
+
+  @Column({ type: 'varchar', length: 10 })
+  code: string;
 }

@@ -10,14 +10,18 @@ import { AuthModule } from 'src/auth/auth.module';
 import { ValidateContractRateLimitGuard } from './rate-limit.guard';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AdminGuard } from './admin.guard';
+import { NotificationUpdateModule } from 'src/notification-update/notification-update.module';
+import { City } from 'src/cities/cities.entity';
+import { Province } from 'src/provinces/province.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Contract]),
+    TypeOrmModule.forFeature([Contract, City, Province]),
     UtilsModule,
     AddressValidateModule,
     UsersModule,
-    AuthModule, 
+    AuthModule,
+    NotificationUpdateModule,
   ],
   providers: [
     ContractService,
