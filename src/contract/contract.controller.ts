@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -20,7 +21,7 @@ import { AddressValidateService } from 'src/address-validate/address-validate.se
 export class ContractController {
   constructor(
     private readonly contractService: ContractService,
-    private readonly addressValidateService: AddressValidateService, // ← agregar
+    private readonly addressValidateService: AddressValidateService,
   ) {}
 
   @Get()
@@ -45,6 +46,30 @@ export class ContractController {
   @Delete(':id')
   remove(@Param('id') id: number) {
     return this.contractService.remove(id);
+  }
+
+  //Actualiza nombre personalizado y/o dirección de notificación
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async update(
+    @Param('id') id: number,
+    @Body() body: {
+      name?: string;
+      newAddress?: {
+        fullAddress: string;
+        cityId: number;
+        provinceId: number;
+        cityName: string;
+        provinceName: string;
+        addressKind: 'urban' | 'rural';
+      };
+    },
+    @Req() req,
+  ) {
+    const auth = req.headers['authorization'];
+    const token = auth?.split(' ')[1];
+    const payload = jwtDecode<{ email: string }>(token);
+    return this.contractService.update(id, body, payload.email);
   }
 
   @UseGuards(JwtAuthGuard, ValidateContractRateLimitGuard)

@@ -33,4 +33,7 @@ export class Contract {
 
   @Column({ name: 'city_id' })
   cityId: number;
+
+  @Column({ name: 'notification_address', nullable: true, length: 255 })
+  notificationAddress: string;
 }

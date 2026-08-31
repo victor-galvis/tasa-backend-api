@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Contract } from './contract.entity';
 import { Repository } from 'typeorm';
@@ -9,6 +9,16 @@ import { UsersService } from 'src/users/users.service';
 import { NotificationUpdateService } from 'src/notification-update/notification-update.service';
 import { City } from 'src/cities/cities.entity';
 import { Province } from 'src/provinces/province.entity';
+
+// Timeout global para todas las llamadas SAP (ms)
+const SAP_TIMEOUT_MS = Number(process.env.SAP_REQUEST_TIMEOUT_MS ?? 20000);
+
+/** Log de tiempo para cada llamada SAP — ayuda a identificar lentitud */
+function logSapTiming(operation: string, startMs: number, status?: number | string) {
+  const elapsed = Date.now() - startMs;
+  const flag = elapsed > 10000 ? '⚠️ LENTO' : elapsed > 5000 ? '🔶 MEDIO' : '✅ OK';
+  console.log(`[SAP][${operation}] ${flag} — ${elapsed}ms${status ? ` — status: ${status}` : ''}`);
+}
 
 @Injectable()
 export class ContractService {
@@ -32,16 +42,25 @@ export class ContractService {
     return this.contractRepository.find();
   }
 
-  findByUser(userId: number) {
-    return this.contractRepository.find({
-      where: { user_id: userId },
-    });
+  async findByUser(userId: number) {
+    const rows = await this.contractRepository.query(
+      `SELECT c.*, co.name AS companyName
+      FROM contract c
+      LEFT JOIN company co ON co.id = c.company_id
+      WHERE c.user_id = ?`,
+      [userId],
+    );
+    return rows.map((r: any) => ({
+      ...r,
+      deliveryMethod: r.delivery_method,
+      companyId: r.company_id,
+      provinceId: r.province_id,
+      cityId: r.city_id,
+      notificationAddress: r.notification_address,
+    }));
   }
 
-  async findByNumberAndUser(
-    number: string,
-    user_id: number,
-  ): Promise<Contract | null> {
+  async findByNumberAndUser(number: string, user_id: number): Promise<Contract | null> {
     return this.contractRepository.findOne({ where: { number, user_id } });
   }
 
@@ -70,9 +89,7 @@ export class ContractService {
 
       if (saved.deliveryMethod === 'digital') {
         await this.notificationUpdateService.updateNotification(
-          comercializadora,
-          contrato,
-          'email',
+          comercializadora, contrato, 'email',
           { email: requesterEmail },
           requesterEmail,
         );
@@ -85,9 +102,7 @@ export class ContractService {
         }
 
         await this.notificationUpdateService.updateNotification(
-          comercializadora,
-          contrato,
-          'address',
+          comercializadora, contrato, 'address',
           {
             direccion: address,
             municipio: city.code.slice(-3),
@@ -99,7 +114,6 @@ export class ContractService {
     } catch (error) {
       const err = error as Error;
       console.error('No se pudo sincronizar la notificación con SAP:', err.message);
-      // El contrato queda creado igual (decisión sección 5 #1) — se avisa al frontend.
       return { ...saved, notificationSyncError: err.message };
     }
 
@@ -109,6 +123,51 @@ export class ContractService {
   async remove(id: number) {
     await this.contractRepository.delete(id);
     return { message: `Contrato ${id} eliminado correctamente` };
+  }
+
+  async update(
+    id: number,
+    payload: {
+      name?: string;
+      newAddress?: {
+        fullAddress: string;
+        cityId: number;
+        provinceId: number;
+        cityName: string;
+        provinceName: string;
+        addressKind: 'urban' | 'rural';
+      };
+    },
+    requesterEmail: string,
+  ): Promise<Contract> {
+    const contract = await this.contractRepository.findOne({ where: { id } });
+    if (!contract) throw new NotFoundException(`Contrato ${id} no encontrado`);
+
+    if (payload.name) {
+      contract.name = payload.name;
+    }
+
+    if (payload.newAddress && contract.deliveryMethod === 'physical') {
+      const { fullAddress, cityId, provinceId } = payload.newAddress;
+      const city = await this.cityRepository.findOne({ where: { id: cityId } });
+      const province = await this.provinceRepository.findOne({ where: { id: provinceId } });
+
+      if (!city || !province) throw new NotFoundException('Municipio o departamento no encontrado');
+
+      await this.notificationUpdateService.updateNotification(
+        String(contract.companyId), contract.number, 'address',
+        {
+          direccion: fullAddress,
+          municipio: city.code.slice(-3),
+          departamento: province.code,
+        },
+        requesterEmail,
+      );
+
+      contract.notificationAddress = fullAddress;
+    }
+
+    return this.contractRepository.save(contract);
   }
 
   async validateContract(filters: any, email: string) {
@@ -145,25 +204,24 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
+      timeout: SAP_TIMEOUT_MS, 
       url: process.env.SAP_ENDPOINT_VALIDATECONTRACT,
       headers: {
         'Content-Type': 'application/json',
-        Authorization:
-          'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
+        Authorization: 'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie: process.env.SAP_COOKIE,
       },
       data,
     };
 
+    const sapStart = Date.now(); 
     try {
       const response = await axios.request(config);
+      logSapTiming('validateContract', sapStart, response.status); 
+
       if (response.data.data.length > 0) {
-
         let user = await this.userService.findByEmail(email);
-
-        if (!user) {
-          throw new Error('User not found');
-        }
+        if (!user) throw new Error('User not found');
 
         const correctAddress = response.data.data[0].address;
         const randomFakes = Array.from({ length: 4 }, () => this.utils.generateRandomAddress());
@@ -173,11 +231,9 @@ export class ContractService {
           company: filters.company,
           agreement: filters.agreement,
           user_id: user.id,
-          correctAddress: correctAddress,
+          correctAddress,
           status: 'PENDING',
         };
-        console.log('filters', filters);
-        console.log('resultAddress', resultAddress);
 
         if (!resultAddress) {
           await this.addressValidateService.create(addressData);
@@ -192,32 +248,38 @@ export class ContractService {
         return notFoundResult;
       }
     } catch (error) {
-      const err = error as Error;
+      const err = error as any;
+      const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      logSapTiming('validateContract', sapStart, isTimeout ? 'TIMEOUT' : err.message); 
       console.error('Error al validar contrato:', err.message);
       throw new Error('No se pudo validar el contrato');
     }
   }
+
   async downloadInvoice(filters: any) {
     const data = JSON.stringify({ filters });
-
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
+      timeout: SAP_TIMEOUT_MS, 
       url: process.env.SAP_ENDPOINT_DOWNLOADINVOICE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization:
-          'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
+        Authorization: 'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie: process.env.SAP_COOKIE,
       },
       data,
     };
 
+    const sapStart = Date.now(); 
     try {
       const response = await axios.request(config);
+      logSapTiming('downloadInvoice', sapStart, response.status); 
       return response.data;
     } catch (error) {
-      const err = error as Error;
+      const err = error as any;
+      const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      logSapTiming('downloadInvoice', sapStart, isTimeout ? 'TIMEOUT' : err.message); 
       console.error('Error al descargar factura:', err.message);
       throw new Error('No se pudo descargar la factura');
     }
@@ -225,25 +287,28 @@ export class ContractService {
 
   async pendingPayment(filters: any) {
     const data = JSON.stringify({ filters });
-
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
+      timeout: SAP_TIMEOUT_MS, 
       url: process.env.SAP_ENDPOINT_PENDINGPAYMENT,
       headers: {
         'Content-Type': 'application/json',
-        Authorization:
-          'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
+        Authorization: 'Basic ' + Buffer.from(`${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`).toString('base64'),
         Cookie: process.env.SAP_COOKIE,
       },
       data,
     };
 
+    const sapStart = Date.now(); 
     try {
       const response = await axios.request(config);
+      logSapTiming('pendingPayment', sapStart, response.status); 
       return response.data;
     } catch (error) {
-      const err = error as Error;
+      const err = error as any;
+      const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      logSapTiming('pendingPayment', sapStart, isTimeout ? 'TIMEOUT' : err.message); 
       console.error('Error al consultar pagos pendientes:', err.message);
       throw new Error('No se pudo consultar los pagos pendientes');
     }

@@ -4,6 +4,7 @@ import {
     Get,
     Body,
     Query,
+    Param,
     Req,
     HttpCode,
 } from '@nestjs/common';
@@ -16,9 +17,9 @@ interface UpdateNotificationBody {
     agreement:    string;
     updateType:   NotificationUpdateType;
     email?:       string;
-    direccion?:   string; 
-    municipio?:   string; 
-    departamento?: string; 
+    direccion?:   string;
+    municipio?:   string;
+    departamento?: string;
 }
 
 interface BlockNotificationBody {
@@ -35,7 +36,6 @@ export class NotificationUpdateController {
 
     // ─────────────────────────────────────────────────────────────
     // GET /notification-update/status?company=14&agreement=4155
-    // Alcance company+agreement — ya no depende del usuario logueado
     // ─────────────────────────────────────────────────────────────
     @Get('status')
     async getStatus(@Query() query: { company: string; agreement: string }) {
@@ -46,10 +46,25 @@ export class NotificationUpdateController {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // GET /notification-update/attempts/:company/:agreement
+    // Usado por el frontend (edit-contract-modal) para saber cuántos
+    // intentos se han consumido y mostrar/bloquear los controles.
+    // Devuelve: { emailAttempts: number, addressAttempts: number }
+    // ─────────────────────────────────────────────────────────────
+    @Get('attempts/:company/:agreement')
+    async getAttempts(
+        @Param('company') company: string,
+        @Param('agreement') agreement: string,
+    ) {
+        const status = await this.notificationUpdateService.getStatus(company, agreement);
+        return {
+            emailAttempts:   status.email?.attempts   ?? 0,
+            addressAttempts: status.address?.attempts ?? 0,
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // POST /notification-update
-    // Attempt to update email or physical address
-    // Body: { company, agreement, updateType, newValue }
-    // user_id se sigue resolviendo del JWT, pero solo para auditoría
     // ─────────────────────────────────────────────────────────────
     @Post()
     @HttpCode(200)
@@ -60,9 +75,9 @@ export class NotificationUpdateController {
             body.agreement,
             body.updateType,
             {
-                email: body.email,
-                direccion: body.direccion,
-                municipio: body.municipio,
+                email:       body.email,
+                direccion:   body.direccion,
+                municipio:   body.municipio,
                 departamento: body.departamento,
             },
             email,
@@ -70,8 +85,7 @@ export class NotificationUpdateController {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // POST /notification-update/block  (admin use)
-    // Force-blocks a company + agreement for a given update type
+    // POST /notification-update/block  (admin)
     // ─────────────────────────────────────────────────────────────
     @Post('block')
     @HttpCode(200)
@@ -83,9 +97,6 @@ export class NotificationUpdateController {
         );
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Shared helper — same pattern you use in address-validate
-    // ─────────────────────────────────────────────────────────────
     private extractEmail(req: any): string {
         const auth  = req.headers['authorization'];
         const token = auth?.split(' ')[1];
