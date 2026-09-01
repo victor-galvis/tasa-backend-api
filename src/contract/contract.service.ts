@@ -14,10 +14,11 @@ import { Province } from 'src/provinces/province.entity';
 const SAP_TIMEOUT_MS = Number(process.env.SAP_REQUEST_TIMEOUT_MS ?? 20000);
 
 /** Log de tiempo para cada llamada SAP — ayuda a identificar lentitud */
-function logSapTiming(operation: string, startMs: number, status?: number | string) {
+function logSapTiming(operation: string, startMs: number, status?: number | string, identifier?: string) {
   const elapsed = Date.now() - startMs;
   const flag = elapsed > 10000 ? '⚠️ LENTO' : elapsed > 5000 ? '🔶 MEDIO' : '✅ OK';
-  console.log(`[SAP][${operation}] ${flag} — ${elapsed}ms${status ? ` — status: ${status}` : ''}`);
+  const id = identifier ? `-${identifier}` : '';
+  console.log(`[SAP][${operation}${id}] ${flag} — ${elapsed}ms${status ? ` — status: ${status}` : ''}`);
 }
 
 @Injectable()
@@ -217,7 +218,7 @@ export class ContractService {
     const sapStart = Date.now(); 
     try {
       const response = await axios.request(config);
-      logSapTiming('validateContract', sapStart, response.status); 
+      logSapTiming('validateContract', sapStart, response.status, filters.agreement); 
 
       if (response.data.data.length > 0) {
         let user = await this.userService.findByEmail(email);
@@ -250,7 +251,7 @@ export class ContractService {
     } catch (error) {
       const err = error as any;
       const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
-      logSapTiming('validateContract', sapStart, isTimeout ? 'TIMEOUT' : err.message); 
+      logSapTiming('validateContract', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement); 
       console.error('Error al validar contrato:', err.message);
       throw new Error('No se pudo validar el contrato');
     }
@@ -274,12 +275,12 @@ export class ContractService {
     const sapStart = Date.now(); 
     try {
       const response = await axios.request(config);
-      logSapTiming('downloadInvoice', sapStart, response.status); 
+      logSapTiming('downloadInvoice', sapStart, response.status, filters.agreement); 
       return response.data;
     } catch (error) {
       const err = error as any;
       const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
-      logSapTiming('downloadInvoice', sapStart, isTimeout ? 'TIMEOUT' : err.message); 
+      logSapTiming('downloadInvoice', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement); 
       console.error('Error al descargar factura:', err.message);
       throw new Error('No se pudo descargar la factura');
     }
@@ -303,12 +304,12 @@ export class ContractService {
     const sapStart = Date.now(); 
     try {
       const response = await axios.request(config);
-      logSapTiming('pendingPayment', sapStart, response.status); 
+      logSapTiming('pendingPayment', sapStart, response.status, filters.agreement); 
       return response.data;
     } catch (error) {
       const err = error as any;
       const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
-      logSapTiming('pendingPayment', sapStart, isTimeout ? 'TIMEOUT' : err.message); 
+      logSapTiming('pendingPayment', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement); 
       console.error('Error al consultar pagos pendientes:', err.message);
       throw new Error('No se pudo consultar los pagos pendientes');
     }
