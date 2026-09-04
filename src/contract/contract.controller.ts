@@ -103,4 +103,9 @@ export class ContractController {
   unblockById(@Param('id') id: number) {
     return this.addressValidateService.deleteById(id);
   }
+  @UseGuards(AdminGuard)
+  @Post('admin/invoices')
+  async adminInvoices(@Body() body: { company: string | number; agreement: string }) {
+    return this.contractService.adminDownloadInvoices(body.company, body.agreement);
+  }
 }

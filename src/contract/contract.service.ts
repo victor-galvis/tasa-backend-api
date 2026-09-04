@@ -205,7 +205,7 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      timeout: SAP_TIMEOUT_MS, 
+      timeout: SAP_TIMEOUT_MS,
       url: process.env.SAP_ENDPOINT_VALIDATECONTRACT,
       headers: {
         'Content-Type': 'application/json',
@@ -215,10 +215,10 @@ export class ContractService {
       data,
     };
 
-    const sapStart = Date.now(); 
+    const sapStart = Date.now();
     try {
       const response = await axios.request(config);
-      logSapTiming('validateContract', sapStart, response.status, filters.agreement); 
+      logSapTiming('validateContract', sapStart, response.status, filters.agreement);
 
       if (response.data.data.length > 0) {
         let user = await this.userService.findByEmail(email);
@@ -251,7 +251,7 @@ export class ContractService {
     } catch (error) {
       const err = error as any;
       const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
-      logSapTiming('validateContract', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement); 
+      logSapTiming('validateContract', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement);
       console.error('Error al validar contrato:', err.message);
       throw new Error('No se pudo validar el contrato');
     }
@@ -262,7 +262,7 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      timeout: SAP_TIMEOUT_MS, 
+      timeout: SAP_TIMEOUT_MS,
       url: process.env.SAP_ENDPOINT_DOWNLOADINVOICE,
       headers: {
         'Content-Type': 'application/json',
@@ -272,15 +272,15 @@ export class ContractService {
       data,
     };
 
-    const sapStart = Date.now(); 
+    const sapStart = Date.now();
     try {
       const response = await axios.request(config);
-      logSapTiming('downloadInvoice', sapStart, response.status, filters.agreement); 
+      logSapTiming('downloadInvoice', sapStart, response.status, filters.agreement);
       return response.data;
     } catch (error) {
       const err = error as any;
       const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
-      logSapTiming('downloadInvoice', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement); 
+      logSapTiming('downloadInvoice', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement);
       console.error('Error al descargar factura:', err.message);
       throw new Error('No se pudo descargar la factura');
     }
@@ -291,7 +291,7 @@ export class ContractService {
     const config = {
       method: 'get' as const,
       maxBodyLength: Infinity,
-      timeout: SAP_TIMEOUT_MS, 
+      timeout: SAP_TIMEOUT_MS,
       url: process.env.SAP_ENDPOINT_PENDINGPAYMENT,
       headers: {
         'Content-Type': 'application/json',
@@ -301,17 +301,57 @@ export class ContractService {
       data,
     };
 
-    const sapStart = Date.now(); 
+    const sapStart = Date.now();
     try {
       const response = await axios.request(config);
-      logSapTiming('pendingPayment', sapStart, response.status, filters.agreement); 
+      logSapTiming('pendingPayment', sapStart, response.status, filters.agreement);
       return response.data;
     } catch (error) {
       const err = error as any;
       const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
-      logSapTiming('pendingPayment', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement); 
+      logSapTiming('pendingPayment', sapStart, isTimeout ? 'TIMEOUT' : err.message, filters.agreement);
       console.error('Error al consultar pagos pendientes:', err.message);
       throw new Error('No se pudo consultar los pagos pendientes');
+    }
+  }
+
+  async adminDownloadInvoices(company: string | number, agreement: string) {
+    const filters = { company, agreement };
+    const data = JSON.stringify({ filters });
+
+    const config = {
+      method: 'get' as const,
+      maxBodyLength: Infinity,
+      timeout: SAP_TIMEOUT_MS,
+      url: process.env.SAP_ENDPOINT_DOWNLOADINVOICE,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization:
+          'Basic ' +
+          Buffer.from(
+            `${process.env.SAP_USER}:${process.env.SAP_PASSWORD}`,
+          ).toString('base64'),
+        Cookie: process.env.SAP_COOKIE,
+      },
+      data,
+    };
+
+    const sapStart = Date.now();
+    try {
+      const response = await axios.request(config);
+      logSapTiming('adminDownloadInvoices', sapStart, response.status, agreement);
+      return response.data;
+    } catch (error) {
+      const err = error as any;
+      const isTimeout = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      logSapTiming(
+        'adminDownloadInvoices',
+        sapStart,
+        isTimeout ? 'TIMEOUT' : err.message,
+        agreement,
+      );
+      console.error('Error admin al consultar facturas:', err.message);
+      throw new Error('No se pudo consultar las facturas en SAP');
     }
   }
 }
