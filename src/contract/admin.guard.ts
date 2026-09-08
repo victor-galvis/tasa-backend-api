@@ -24,9 +24,11 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Token inválido o expirado');
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL;
-    if (!adminEmail) throw new ForbiddenException('Admin no configurado');
-    if (payload.email !== adminEmail) throw new ForbiddenException('Sin permisos');
+    const adminEmails = (process.env.ADMIN_EMAIL ?? '')
+      .split(',')
+      .map(e => e.trim());
+    if (!adminEmails.length) throw new ForbiddenException('Admin no configurado');
+    if (!adminEmails.includes(payload.email)) throw new ForbiddenException('Sin permisos');
 
     return true;
   }
