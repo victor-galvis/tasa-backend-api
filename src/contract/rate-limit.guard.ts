@@ -22,6 +22,9 @@ export class ValidateContractRateLimitGuard implements CanActivate {
   private readonly CONSECUTIVE_THRESHOLD = 3;
   private readonly WHITELISTED_EMAILS: string[] = [
     'tasaseguridad@antioquia.gov.co',
+    'victor.galvis@valormas.gov.co',
+    'juan.velez@valormas.gov.co',
+    'asistente@riosur.com.co',
   ];
 
   private readonly userRecords = new Map<string, RateLimitRecord>();
