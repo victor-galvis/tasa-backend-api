@@ -24,7 +24,7 @@ export class ValidateContractRateLimitGuard implements CanActivate {
     'tasaseguridad@antioquia.gov.co',
     'victor.galvis@valormas.gov.co',
     'juan.velez@valormas.gov.co',
-    'asistente@riosur.com.co',
+    'ASISTENTE@RIOSUR.COM.CO',
   ];
 
   private readonly userRecords = new Map<string, RateLimitRecord>();
